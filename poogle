@@ -123,10 +123,11 @@ def visit(query):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Jump to docs.'
-                                        'Enter <function/module/whatever>.<method> (e.g `str.split`)'
-                                        'or <function/module> (e.g. `getattr`).'
-                                        'To look up a term, prefix term as the module- term.<some-python-jargon>, (e.g. `term.garbage-collection`)')
+    parser = argparse.ArgumentParser(description='Jump to docs.\n'
+                                        'Enter <function/module/whatever>.<method> (e.g `str.split`)\n'
+                                        'or <function/module> (e.g. `getattr`).\n'
+                                        'To look up a term, prefix term as the module- term.<some-python-jargon>, (e.g. `term.garbage-collection`)',
+                                     formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('lookup')
     query = parser.parse_args().lookup
     visit(query)
