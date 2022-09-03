@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
+import argparse
 import sys
 import difflib
 import webbrowser
 import functools
-from argparse import ArgumentParser
-from typing import Optional
+from typing import Optional, Iterable
 
 PYTHON_DOCS = "https://docs.python.org/3/"
 TERM_DOCS = "glossary.html#term-"
@@ -26,17 +26,19 @@ AGEN = type(ag())
 del ag
 
 
-def matches(query, pool, default=None):
-    matched = difflib.get_close_matches(query, pool, n=1, cutoff=0.8)
+def matches(query: str, pool: Iterable[str], default:str=''):
+    matched = difflib.get_close_matches(query, pool, n=1, cutoff=0.7)
     return matched.pop() if matched else default
 
 
 def parse(head: str, tail: str, possibilities: list, url: str, fallback: str) -> str:
     if tail:
-        method = matches(tail, possibilities, default=tail)
-        return url + head + '.' + method
-    else:
-        return fallback
+        method = matches(tail, possibilities)
+
+        if method:
+            return url + head + '.' + method
+
+    return fallback
 
 
 def a_type(t: str) -> Optional[list[str]]:
@@ -51,9 +53,9 @@ def a_type(t: str) -> Optional[list[str]]:
         return dir(builtin)
 
 
-def docc(query: str, term=False) -> str:
-    """if a match was found, jumps to the the docs pinned on the match,
-    else open up to the site's search with the query.
+def url_from(query: str) -> str:
+    """if a match was found, return url of docs pinned on the match,
+    else return url of the site's search with the query in place.
     Note that if the module's name if either are slightly incorrect,
     you probably will still be redirected to the correct page and tag."""
 
@@ -112,13 +114,16 @@ def docc(query: str, term=False) -> str:
 
 
 def visit(query):
-    url = docc(query)
+    """take query, transform it to an actual url via the url_from function,
+    then opens a new browser tab with said url"""
+
+    url = url_from(query)
     print("Opening", url, "in broswer")
     webbrowser.open(url)
 
 
 if __name__ == '__main__':
-    parser = ArgumentParser(description='Jump to docs.'
+    parser = argparse.ArgumentParser(description='Jump to docs.'
                                         'Enter <function/module/whatever>.<method> (e.g `str.split`)'
                                         'or <function/module> (e.g. `getattr`).'
                                         'To look up a term, prefix term as the module- term.<some-python-jargon>, (e.g. `term.garbage-collection`)')
