@@ -26,7 +26,7 @@
   (interactive)
 
   (shell-command
-    (concat "poogle.py "
+    (concat "poogle "
             (read-from-minibuffer "Enter Query: "))))
 
 
