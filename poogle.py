@@ -4,8 +4,11 @@ import sys
 import difflib
 import webbrowser
 import functools
+from argparse import ArgumentParser
+from typing import Optional
 
 PYTHON_DOCS = "https://docs.python.org/3/"
+TERM_DOCS = "glossary.html#term-"
 STDLIB_DOCS = "library/"
 TYPE_DOCS = STDLIB_DOCS + "stdtypes#"
 FUNCTION_DOCS = "library/functions#"
@@ -14,10 +17,13 @@ DATA_MODEL_MAIN_DOCS = DATA_MODEL_DOCS + "objects-values-and-types"
 GEN_DOCS = "reference/expressions.html#"
 GEN_MAIN_DOCS = GEN_DOCS + "asynchronous-generator-iterator-methods"
 
-GEN = type((_ for _ in ()))
-async def f(): yield
-AGEN = type(f())
-del f
+g = (_ for _ in ())
+GEN = type(g)
+del g
+
+async def ag(): yield
+AGEN = type(ag())
+del ag
 
 
 def matches(query, pool, default=None):
@@ -25,7 +31,7 @@ def matches(query, pool, default=None):
     return matched.pop() if matched else default
 
 
-def parse(head: str, tail: str, possibilities: list, url: str, fallback: str):
+def parse(head: str, tail: str, possibilities: list, url: str, fallback: str) -> str:
     if tail:
         method = matches(tail, possibilities, default=tail)
         return url + head + '.' + method
@@ -33,15 +39,19 @@ def parse(head: str, tail: str, possibilities: list, url: str, fallback: str):
         return fallback
 
 
-def a_type(t):
-    """checks if a string represents a built in type, if so, returns the type"""
+def a_type(t: str) -> Optional[list[str]]:
+    """checks if a string represents a built in type (or at least an `abstract` one like iterator), if so, returns the type"""
+
+    if t in ("iterator", "container"):
+        return ["__iter__", "__next__"]
+
     builtin = vars(__builtins__).get(t) # maybe None
     # None is not a built in type (NoneType is) so it will fail the following isinstance check
     if isinstance(builtin, type):
-        return builtin
+        return dir(builtin)
 
 
-def docc(query: str):
+def docc(query: str, term=False) -> str:
     """if a match was found, jumps to the the docs pinned on the match,
     else open up to the site's search with the query.
     Note that if the module's name if either are slightly incorrect,
@@ -50,7 +60,9 @@ def docc(query: str):
     base = ["iterator", "container", "generator", "agen", "object", "class", "frame"] + dir(__builtins__)
     modules = sys.stdlib_module_names
     head, _, tail = query.partition('.')
-    path = PYTHON_DOCS
+
+    if head == "term":
+        return PYTHON_DOCS + TERM_DOCS + tail
 
     # some form of a builtin
     if res := matches(head, base):
@@ -59,15 +71,17 @@ def docc(query: str):
         # most likely an implementable dunder method shit
         if res in ("object", "class", "frame"):
             return PYTHON_DOCS + parse_unique(
-                possibilities=dir(object),
+                possibilities=dir(object) + ['clear', "__del__", "__bytes__", "__getattr__",
+                                             "__get__", "__set__", "__instancecheck__",
+                                             "__subclasscheck__", "__set_name__", "__slots__", "__class_getitem__"],
                 url=DATA_MODEL_DOCS,
                 fallback=DATA_MODEL_MAIN_DOCS
             )
 
         # it's a type
-        if builtin := a_type(res) or res in ("iterator", "container"):
+        if (typemethods := a_type(res)) is not None:
             return PYTHON_DOCS + parse_unique(
-                possibilities = dir(builtin) if builtin else ["__iter__", "__next__"],
+                possibilities=typemethods,
                 url=TYPE_DOCS,
                 fallback=TYPE_DOCS + res
             )
@@ -104,4 +118,10 @@ def visit(query):
 
 
 if __name__ == '__main__':
-    visit(sys.argv[1])
+    parser = ArgumentParser(description='Jump to docs.'
+                                        'Enter <function/module/whatever>.<method> (e.g `str.split`)'
+                                        'or <function/module> (e.g. `getattr`).'
+                                        'To look up a term, prefix term as the module- term.<some-python-jargon>, (e.g. `term.garbage-collection`)')
+    parser.add_argument('lookup')
+    query = parser.parse_args().lookup
+    visit(query)
