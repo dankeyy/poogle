@@ -31,7 +31,7 @@ def matches(query: str, pool: Iterable[str], default:str=''):
     return matched.pop() if matched else default
 
 
-def parse(head: str, tail: str, possibilities: list, url: str, fallback: str) -> str:
+def assemble_url(head: str, tail: str, possibilities: list, url: str, fallback: str) -> str:
     if tail:
         method = matches(tail, possibilities)
 
@@ -41,8 +41,8 @@ def parse(head: str, tail: str, possibilities: list, url: str, fallback: str) ->
     return fallback
 
 
-def a_type(t: str) -> Optional[list[str]]:
-    """checks if a string represents a built in type (or at least an `abstract` one like iterator), if so, returns the type"""
+def maybe_type_methods(t: str) -> Optional[list[str]]:
+    """Checks if a string represents a built in type (or at least an `abstract` one like iterator), if so, returns the its possible methods"""
 
     if t in ("iterator", "container"):
         return ["__iter__", "__next__"]
@@ -68,11 +68,11 @@ def url_from(query: str) -> str:
 
     # some form of a builtin
     if res := matches(head, base):
-        parse_unique = functools.partial(parse, head=res, tail=tail)
+        assemble_url_unique = functools.partial(assemble_url, head=res, tail=tail)
 
         # most likely an implementable dunder method shit
         if res in ("object", "class", "frame"):
-            return PYTHON_DOCS + parse_unique(
+            return PYTHON_DOCS + assemble_url_unique(
                 possibilities=dir(object) + ['clear', "__del__", "__bytes__", "__getattr__",
                                              "__get__", "__set__", "__instancecheck__",
                                              "__subclasscheck__", "__set_name__", "__slots__", "__class_getitem__"],
@@ -81,8 +81,8 @@ def url_from(query: str) -> str:
             )
 
         # it's a type
-        if (typemethods := a_type(res)) is not None:
-            return PYTHON_DOCS + parse_unique(
+        if (typemethods := maybe_type_methods(res)) is not None:
+            return PYTHON_DOCS + assemble_url_unique(
                 possibilities=typemethods,
                 url=TYPE_DOCS,
                 fallback=TYPE_DOCS + res
@@ -90,7 +90,7 @@ def url_from(query: str) -> str:
 
         # generator or async generator coroutine
         if res in ("generator", "agen"):
-            return PYTHON_DOCS + parse_unique(
+            return PYTHON_DOCS + assemble_url_unique(
                 possibilities=dir(AGEN) if res == "agen" else dir(GEN),
                 url=GEN_DOCS,
                 fallback=GEN_MAIN_DOCS
@@ -101,7 +101,7 @@ def url_from(query: str) -> str:
 
     # stdlib module
     if module := matches(head, modules):
-        return PYTHON_DOCS + parse(
+        return PYTHON_DOCS + assemble_url(
             head=module,
             tail=tail,
             possibilities=dir(__import__(module)),
