@@ -27,7 +27,7 @@ del ag
 
 
 def matches(query: str, pool: Iterable[str], default:str=''):
-    matched = difflib.get_close_matches(query, pool, n=1, cutoff=0.7)
+    matched = difflib.get_close_matches(query, pool, n=1, cutoff=0.8)
     return matched.pop() if matched else default
 
 
